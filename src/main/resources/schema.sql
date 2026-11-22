@@ -1,0 +1,1 @@
+CREATE TABLE request_entry (request_id VARCHAR(80) PRIMARY KEY, method VARCHAR(10) NOT NULL, status INTEGER NOT NULL);
