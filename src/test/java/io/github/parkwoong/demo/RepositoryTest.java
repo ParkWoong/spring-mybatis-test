@@ -20,7 +20,7 @@ class RepositoryTest {
     @Test
     void originalInsertAndSelect() {
         assertEquals(0, logs.saveRequestHistory(null));
-        var entry =
+        RequestLog entry =
                 RequestLog.builder()
                         .userId("sample' --")
                         .requestUri("/sample")
