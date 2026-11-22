@@ -1,129 +1,121 @@
-# MyBatis Database Access / MyBatis 조회·저장
+# MyBatis Repository Extraction / MyBatis Repository 추출
 
 [ENG](#eng) | [KR](#kr)
 
 ## ENG
 
-Shows annotation-based SQL, bound parameters, and a repository with MyBatis. An H2 in-memory database makes the example easy to run without a separate database server.
+Extracts the original request-log insert and client-backend select paths, including entities, mappers, repositories, and LogUtils.
 
-### Project structure
+### Source and minimal changes
+
+Only generic package/class/table names and formatting changed in the extracted Java classes. Added H2 schema/sample rows and a test. Removed the generated RequestEntry record and its replacement validation/repository code.
+
+| Original source | Extracted file |
+|---|---|
+| `ProxyApplication.java` | [DemoApplication.java](src/main/java/io/github/parkwoong/demo/DemoApplication.java) |
+| `infra/entity/RequestLog.java` | [infra/entity/RequestLog.java](src/main/java/io/github/parkwoong/demo/infra/entity/RequestLog.java) |
+| `infra/mapper/GfepApiRequestLogMapper.java` | [infra/mapper/ApiRequestLogMapper.java](src/main/java/io/github/parkwoong/demo/infra/mapper/ApiRequestLogMapper.java) |
+| `infra/repository/GfepApiRequestLogRepository.java` | [infra/repository/ApiRequestLogRepository.java](src/main/java/io/github/parkwoong/demo/infra/repository/ApiRequestLogRepository.java) |
+| `spec/util/LogUtils.java` | [spec/util/LogUtils.java](src/main/java/io/github/parkwoong/demo/spec/util/LogUtils.java) |
+| `infra/mapper/GfepClientBackendApiMapper.java` | [infra/mapper/ClientBackendApiMapper.java](src/main/java/io/github/parkwoong/demo/infra/mapper/ClientBackendApiMapper.java) |
+| `infra/repository/GfepClientBackendApiRepository.java` | [infra/repository/ClientBackendApiRepository.java](src/main/java/io/github/parkwoong/demo/infra/repository/ClientBackendApiRepository.java) |
+
+### Structure
 
 ```text
 pom.xml
-src/
-├── main/
-│   ├── java/io/github/parkwoong/demo/
-│   │   ├── DemoApplication.java
-│   │   ├── RequestEntry.java
-│   │   ├── RequestMapper.java
-│   │   └── RequestRepository.java
-│   └── resources/
-│       ├── application.properties
-│       └── schema.sql
-└── test/java/io/github/parkwoong/demo/
-    └── RequestRepositoryTest.java
+src/main/java/io/github/parkwoong/demo/DemoApplication.java
+src/main/java/io/github/parkwoong/demo/infra/entity/RequestLog.java
+src/main/java/io/github/parkwoong/demo/infra/mapper/ApiRequestLogMapper.java
+src/main/java/io/github/parkwoong/demo/infra/mapper/ClientBackendApiMapper.java
+src/main/java/io/github/parkwoong/demo/infra/repository/ApiRequestLogRepository.java
+src/main/java/io/github/parkwoong/demo/infra/repository/ClientBackendApiRepository.java
+src/main/java/io/github/parkwoong/demo/spec/util/LogUtils.java
+src/main/resources/application.properties
+src/main/resources/schema.sql
+src/test/java/io/github/parkwoong/demo/RepositoryTest.java
 ```
-
-Java package: `io.github.parkwoong.demo`.
-
-| File | Role |
-|---|---|
-| [DemoApplication.java](src/main/java/io/github/parkwoong/demo/DemoApplication.java) | Starts Spring Boot and runs the example. |
-| [RequestEntry.java](src/main/java/io/github/parkwoong/demo/RequestEntry.java) | A record holding requestId, method, and status. |
-| [RequestMapper.java](src/main/java/io/github/parkwoong/demo/RequestMapper.java) | Defines INSERT and SELECT queries with MyBatis annotations and bound values. |
-| [RequestRepository.java](src/main/java/io/github/parkwoong/demo/RequestRepository.java) | Validates input before saving and exposes a list query. |
-| [application.properties](src/main/resources/application.properties) | Holds the demo settings. |
-| [schema.sql](src/main/resources/schema.sql) | Creates the sample table. |
-| [pom.xml](pom.xml) | Dependencies and build settings. |
 
 ### How it works
 
-Spring initializes H2 with schema.sql. DemoApplication saves a sample RequestEntry through RequestRepository and prints findAll(). RequestMapper uses #{...} parameters instead of building SQL from input text. Snake-case columns map to Java record fields.
+ApiRequestLogRepository.saveRequestHistory sets timestamp/random ID and calls the annotation INSERT. ClientBackendApiRepository.getClientBackendApis calls the annotation SELECT. RepositoryTest checks both paths with H2 and sample data.
 
-### Run
+### Run and test
 
-Requirements: Java 17+ and Maven 3.6.3+. Run these commands from the repository root.
+Use Java 17 and Maven 3.6.3+. Run from the repository root:
 
 ```sh
 mvn clean verify
 mvn spring-boot:run
 ```
 
-The console prints an entry with requestId=sample, method=GET, and status=200. The database URL is jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1. No external database credentials are needed.
+The app starts without an HTTP server or an added console workflow. Use the tests under src/test for actual calls and results. Database modules initialize H2 at startup.
 
-### Tests
+### Formatting
 
-RequestRepositoryTest saves and reads an ID containing SQL-like text, rejects an invalid status, and checks that a duplicate primary key fails.
+All Java files use google-java-format 1.24.0 with the AOSP style: four-space indentation, consistent line breaks, and organized imports.
 
-[RequestRepositoryTest.java](src/test/java/io/github/parkwoong/demo/RequestRepositoryTest.java)
+### Original limits
 
-### Scope and limits
+Original INSERT relies on table column order. The original null input returns 0. LogUtils keeps its original timestamp/random behavior; no uniqueness guarantee is added. H2 data disappears when the JVM exits; production MySQL compatibility is not verified.
 
-Data is lost when the JVM stops. This example has insert and list operations only, with no HTTP API or migration tool. It does not test compatibility with a production MySQL database.
-
-This learning example uses Spring Boot 3.5.16. Before production use, move to a supported version; see the [3.5 OSS support notice](https://spring.io/blog/2026/06/25/spring-boot-3-5-16-available-now/). Production connections and load tests are not included.
-
-Adapted from a Java proxy project using generic names and sample data. Original Git history, production settings, and business identifiers are not included.
+The build keeps Spring Boot 2.6.6 and the original MyBatis/JJWT APIs for source fidelity. Lombok 1.18.36 supports the local Java 17 build. These are legacy dependencies; this extraction is for learning, not a production-ready upgrade. No production integration or load test is included.
 
 ## KR
 
-MyBatis의 애너테이션 SQL, 파라미터 바인딩 및 Repository 패턴을 다룹니다. H2 메모리 DB를 사용하므로 별도 DB 서버 없이 실행할 수 있습니다.
+원본의 요청 로그 INSERT와 클라이언트별 백엔드 SELECT 경로를 엔티티·매퍼·Repository·LogUtils와 함께 추출했습니다.
+
+### 원본과 최소 변경 사항
+
+추출한 Java 클래스는 범용 패키지·클래스·테이블 이름과 포맷만 변경했습니다. H2 스키마·샘플 행 및 테스트를 추가했습니다. 새로 작성했던 RequestEntry record와 대체 검증·Repository 코드는 제거했습니다.
+
+| 원본 파일 | 추출 파일 |
+|---|---|
+| `ProxyApplication.java` | [DemoApplication.java](src/main/java/io/github/parkwoong/demo/DemoApplication.java) |
+| `infra/entity/RequestLog.java` | [infra/entity/RequestLog.java](src/main/java/io/github/parkwoong/demo/infra/entity/RequestLog.java) |
+| `infra/mapper/GfepApiRequestLogMapper.java` | [infra/mapper/ApiRequestLogMapper.java](src/main/java/io/github/parkwoong/demo/infra/mapper/ApiRequestLogMapper.java) |
+| `infra/repository/GfepApiRequestLogRepository.java` | [infra/repository/ApiRequestLogRepository.java](src/main/java/io/github/parkwoong/demo/infra/repository/ApiRequestLogRepository.java) |
+| `spec/util/LogUtils.java` | [spec/util/LogUtils.java](src/main/java/io/github/parkwoong/demo/spec/util/LogUtils.java) |
+| `infra/mapper/GfepClientBackendApiMapper.java` | [infra/mapper/ClientBackendApiMapper.java](src/main/java/io/github/parkwoong/demo/infra/mapper/ClientBackendApiMapper.java) |
+| `infra/repository/GfepClientBackendApiRepository.java` | [infra/repository/ClientBackendApiRepository.java](src/main/java/io/github/parkwoong/demo/infra/repository/ClientBackendApiRepository.java) |
 
 ### 프로젝트 구조
 
 ```text
 pom.xml
-src/
-├── main/
-│   ├── java/io/github/parkwoong/demo/
-│   │   ├── DemoApplication.java
-│   │   ├── RequestEntry.java
-│   │   ├── RequestMapper.java
-│   │   └── RequestRepository.java
-│   └── resources/
-│       ├── application.properties
-│       └── schema.sql
-└── test/java/io/github/parkwoong/demo/
-    └── RequestRepositoryTest.java
+src/main/java/io/github/parkwoong/demo/DemoApplication.java
+src/main/java/io/github/parkwoong/demo/infra/entity/RequestLog.java
+src/main/java/io/github/parkwoong/demo/infra/mapper/ApiRequestLogMapper.java
+src/main/java/io/github/parkwoong/demo/infra/mapper/ClientBackendApiMapper.java
+src/main/java/io/github/parkwoong/demo/infra/repository/ApiRequestLogRepository.java
+src/main/java/io/github/parkwoong/demo/infra/repository/ClientBackendApiRepository.java
+src/main/java/io/github/parkwoong/demo/spec/util/LogUtils.java
+src/main/resources/application.properties
+src/main/resources/schema.sql
+src/test/java/io/github/parkwoong/demo/RepositoryTest.java
 ```
 
-Java 패키지: `io.github.parkwoong.demo`.
+### 코드 설명
 
-| 파일 | 역할 |
-|---|---|
-| [DemoApplication.java](src/main/java/io/github/parkwoong/demo/DemoApplication.java) | Spring Boot를 시작하고 예제를 실행합니다. |
-| [RequestEntry.java](src/main/java/io/github/parkwoong/demo/RequestEntry.java) | requestId, method, status를 담는 record입니다. |
-| [RequestMapper.java](src/main/java/io/github/parkwoong/demo/RequestMapper.java) | MyBatis 애너테이션과 바인딩 값으로 INSERT·SELECT 쿼리를 정의합니다. |
-| [RequestRepository.java](src/main/java/io/github/parkwoong/demo/RequestRepository.java) | 저장 전 입력을 검증하고 전체 조회 기능을 제공합니다. |
-| [application.properties](src/main/resources/application.properties) | 예제 실행 설정을 정의합니다. |
-| [schema.sql](src/main/resources/schema.sql) | 샘플 테이블을 생성합니다. |
-| [pom.xml](pom.xml) | 의존성과 빌드 설정입니다. |
+ApiRequestLogRepository.saveRequestHistory가 시각·랜덤 ID를 설정하고 애너테이션 INSERT를 호출합니다. ClientBackendApiRepository.getClientBackendApis는 애너테이션 SELECT를 호출합니다. RepositoryTest에서 H2와 샘플 데이터로 두 경로를 확인합니다.
 
-### 동작 방식
+### 실행과 테스트
 
-Spring이 schema.sql로 H2를 초기화합니다. DemoApplication이 RequestRepository를 통해 샘플 RequestEntry를 저장하고 findAll() 결과를 출력합니다. RequestMapper는 입력 문자열로 SQL을 조합하지 않고 #{...} 파라미터를 사용합니다. snake_case 컬럼은 Java record 필드에 매핑됩니다.
-
-### 실행 방법
-
-Java 17 이상, Maven 3.6.3 이상이 필요합니다. 저장소 루트에서 실행하세요.
+Java 17, Maven 3.6.3 이상을 사용합니다. 저장소 루트에서 실행하세요:
 
 ```sh
 mvn clean verify
 mvn spring-boot:run
 ```
 
-콘솔에는 requestId=sample, method=GET, status=200인 항목이 출력됩니다. DB 주소는 jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1이며 외부 DB 계정 정보가 필요하지 않습니다.
+앱은 HTTP 서버나 별도 콘솔 시나리오 없이 시작합니다. 실제 호출과 결과 확인은 src/test의 테스트를 이용하세요. DB 모듈은 시작 시 H2를 초기화합니다.
 
-### 테스트
+### 코드 포맷
 
-RequestRepositoryTest는 SQL처럼 보이는 문자가 포함된 ID의 저장·조회, 잘못된 상태 코드 거부 및 기본 키 중복 오류를 확인합니다.
+전체 Java 파일에 google-java-format 1.24.0의 AOSP 스타일을 적용했습니다. 들여쓰기 4칸, 일관된 줄바꿈 및 import 정리를 사용합니다.
 
-[RequestRepositoryTest.java](src/test/java/io/github/parkwoong/demo/RequestRepositoryTest.java)
+### 유지한 원본 동작과 제한
 
-### 범위와 제한
+원본 INSERT는 테이블 컬럼 순서에 의존합니다. null 입력에는 원본처럼 0을 반환합니다. LogUtils의 시각·랜덤 처리도 유지하며 고유성을 보장하지 않습니다. JVM 종료 시 H2 데이터가 사라지고 운영 MySQL 호환성은 검증하지 않습니다.
 
-JVM이 종료되면 데이터가 사라집니다. 저장·전체 조회만 제공하며 HTTP API와 마이그레이션 도구는 포함하지 않습니다. 운영 MySQL DB와의 호환성은 검증하지 않습니다.
-
-Spring Boot 3.5.16 기반 학습용 예제입니다. 운영 도입 전 지원 버전으로 전환하세요. [3.5 OSS 지원 종료 안내](https://spring.io/blog/2026/06/25/spring-boot-3-5-16-available-now/)를 참고할 수 있습니다. 운영 시스템 연결 및 부하 테스트는 포함하지 않습니다.
-
-기존 Java 프록시 프로젝트에서 기술을 추출해 범용 이름과 샘플 데이터로 재작성했습니다. 기존 Git 이력, 운영 설정 및 업무 식별자는 포함하지 않습니다.
+원본 코드 보존을 위해 Spring Boot 2.6.6과 원본 MyBatis/JJWT API를 사용합니다. 로컬 Java 17 빌드를 위해 Lombok 1.18.36을 적용했습니다. 레거시 의존성을 사용하는 학습용 추출본이며 운영용 업그레이드가 아닙니다. 운영 연동 및 부하 테스트는 포함하지 않습니다.
